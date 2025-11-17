@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ready to Create Your Memorial Video?</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f8f9fa;
+        }
+        h1 { color: #333; margin-bottom: 20px; }
+        p { color: #666; font-size: 18px; margin-bottom: 40px; line-height: 1.6; }
+        .button-container {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 40px 0;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .view-photos {
+            background-color: #6c757d;
+            color: white;
+        }
+        .view-photos:hover { background-color: #5a6268; }
+        .begin-video {
+            background-color: #007bff;
+            color: white;
+        }
+        .begin-video:hover { background-color: #0056b3; }
+        .processing {
+            background-color: #28a745;
+            color: white;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Are You Ready to Begin?</h1>
+    <p>Before we start creating your memorial video, you can review all the photos that have been uploaded by clicking the button below.</p>
+    
+    <div class="button-container">
+        <button class="view-photos" onclick="viewPhotos()">📁 View Uploaded Photos</button>
+        <button class="begin-video" id="beginBtn" onclick="beginVideo()">🎬 Begin Video Processing</button>
+    </div>
+
+    <script>
+        // Get parameters from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const uid = urlParams.get('uid');
+        const dropboxLink = decodeURIComponent(urlParams.get('DLLink') || '');
+
+        // Debug log
+        console.log('UID:', uid);
+        console.log('Dropbox Link:', dropboxLink);
+
+        function viewPhotos() {
+            if (dropboxLink) {
+                window.open(dropboxLink, '_blank');
+            } else {
+                alert('Dropbox link not available. Please contact support.');
+            }
+        }
+
+        function beginVideo() {
+            if (!uid) {
+                alert('Order information missing. Please contact support.');
+                return;
+            }
+
+            const btn = document.getElementById('beginBtn');
+            btn.textContent = 'Processing...';
+            btn.disabled = true;
+            btn.className = 'processing';
+
+            // Call your video processing endpoint
+            // Replace with your actual Lambda/API endpoint
+            fetch('https://YOUR-API-GATEWAY-URL/start-processing', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    orderNumber: uid,
+                    action: 'start_processing'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Success!
+                document.body.innerHTML = `
+                    <div style="text-align: center; padding: 50px;">
+                        <h1 style="color: #28a745;">✅ Video Processing Started!</h1>
+                        <p style="font-size: 18px;">We're creating your memorial video now.</p>
+                        <p>You'll receive an email when it's ready (usually within 24 hours).</p>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                alert('There was an error starting the video processing. Please contact support.');
+                console.error('Error:', error);
+                btn.textContent = '🎬 Begin Video Processing';
+                btn.disabled = false;
+                btn.className = 'begin-video';
+            });
+        }
+    </script>
+</body>
+</html>
