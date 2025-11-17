@@ -84,7 +84,7 @@
 
         // Fetch Dropbox link from S3
         if (uid) {
-            fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
+            fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.json`)
                 .then(response => {
                     if (!response.ok) throw new Error('Link not found');
                     return response.text();
