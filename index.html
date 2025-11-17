@@ -419,18 +419,25 @@
 
             console.log('Sending to Zapier webhook:', payload);
 
-            // Send to Zapier webhook (replaces JotForm trigger)
+            // Send to Zapier webhook using form data (works better with CORS restrictions)
+            const formData = new URLSearchParams();
+            formData.append('uid', uid);
+            formData.append('email', email);
+            formData.append('type', type);
+            formData.append('userName', name);
+            formData.append('titlePhoto', titlePhoto || '');
+            formData.append('endPhoto', endPhoto || '');
+
             fetch('https://hooks.zapier.com/hooks/catch/19825049/uo3a372/', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: JSON.stringify(payload)
+                body: formData.toString()
             })
             .then(response => {
                 console.log('Zapier webhook sent');
-                // Zapier webhooks always return success
-                return response.text().catch(() => '{}');
+                return {};
             })
             .then(data => {
                 console.log('Zapier webhook response:', data);
