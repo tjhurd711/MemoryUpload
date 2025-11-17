@@ -53,6 +53,10 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -60,9 +64,11 @@
     <p>Before we start creating your memorial video, you can review all the photos that have been uploaded by clicking the button below.</p>
     
     <div class="button-container">
-        <button class="view-photos" onclick="viewPhotos()">📁 View Uploaded Photos</button>
+        <button class="view-photos" id="viewBtn" onclick="viewPhotos()">📁 View Uploaded Photos</button>
         <button class="begin-video" id="beginBtn" onclick="beginVideo()">🎬 Begin Video Processing</button>
     </div>
+    
+    <p id="statusMessage" class="loading">Loading photo link...</p>
 
     <script>
         // Get ALL parameters from URL
@@ -73,7 +79,31 @@
         const email = urlParams.get('email');
         const deceasedname = urlParams.get('deceasedname');
         const inviteothers = urlParams.get('inviteothers');
-        const dropboxLink = decodeURIComponent(urlParams.get('DLLink') || '');
+        
+        let dropboxLink = '';
+
+        // Fetch Dropbox link from S3
+        if (uid) {
+            fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Link not found');
+                    return response.text();
+                })
+                .then(link => {
+                    dropboxLink = link.trim();
+                    console.log('Fetched Dropbox link:', dropboxLink);
+                    document.getElementById('statusMessage').style.display = 'none';
+                    document.getElementById('viewBtn').disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching Dropbox link:', error);
+                    document.getElementById('statusMessage').textContent = 'Unable to load photo link. Please contact support.';
+                    document.getElementById('statusMessage').style.color = '#dc3545';
+                });
+        } else {
+            document.getElementById('statusMessage').textContent = 'Order information missing.';
+            document.getElementById('statusMessage').style.color = '#dc3545';
+        }
 
         // Debug log
         console.log('All Parameters:', {
@@ -82,15 +112,14 @@
             type,
             email,
             deceasedname,
-            inviteothers,
-            dropboxLink
+            inviteothers
         });
 
         function viewPhotos() {
             if (dropboxLink) {
                 window.open(dropboxLink, '_blank');
             } else {
-                alert('Dropbox link not available. Please contact support.');
+                alert('Dropbox link not available yet. Please wait a moment or contact support.');
             }
         }
 
