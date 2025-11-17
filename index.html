@@ -407,42 +407,47 @@
             btn.disabled = true;
             btn.className = 'processing';
 
-            // Build payload matching the original JotForm structure
+            // Normalize type to lowercase (matching original Zapier logic)
+            let normalizedType = "photos_only";
+            if (type) {
+                normalizedType = type.toLowerCase();
+                if (normalizedType === "memorial_video") {
+                    normalizedType = "memorial_video";
+                }
+            }
+
+            // Build Dropbox folder path
+            const folderPath = uid ? `/Order by age/${uid}` : null;
+
+            // Build payload for Lambda
             const payload = {
-                uid: uid,
-                email: email,
-                type: type,  // Keep as-is, Zapier will normalize it
-                userName: name,
-                titlePhoto: titlePhoto,  // ← Now from URL params
-                endPhoto: endPhoto       // ← Now from URL params
+                UID: uid,
+                EMAIL: email,
+                TYPE: normalizedType,
+                NAME: name,
+                DROPBOX_FOLDER_PATH: folderPath,
+                TITLE_PHOTO_URL: titlePhoto || null,
+                END_PHOTO_URL: endPhoto || null
             };
 
-            console.log('Sending to Zapier webhook:', payload);
+            console.log('Calling Lambda:', payload);
 
-            // Send to Zapier webhook using form data (works better with CORS restrictions)
-            const formData = new URLSearchParams();
-            formData.append('uid', uid);
-            formData.append('email', email);
-            formData.append('type', type);
-            formData.append('userName', name);
-            formData.append('titlePhoto', titlePhoto || '');
-            formData.append('endPhoto', endPhoto || '');
-
-            fetch('https://hooks.zapier.com/hooks/catch/19825049/uo3a372/', {
+            // Call Lambda directly
+            fetch('https://kjr77tz4hysmixxtzzdp3ugtte0gceyq.lambda-url.us-east-2.on.aws/', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
-                body: formData.toString()
+                body: JSON.stringify(payload)
             })
             .then(response => {
-                console.log('Zapier webhook sent');
-                return {};
+                console.log('Lambda response status:', response.status);
+                return response.json();
             })
             .then(data => {
-                console.log('Zapier webhook response:', data);
+                console.log('Lambda started successfully:', data);
                 
-                // Build redirect URL with all parameters
+                // Now redirect to slide choosing form
                 const redirectUrl = new URL('https://slidechoosing.memorialvideo.ai/');
                 redirectUrl.searchParams.set('uid', uid);
                 redirectUrl.searchParams.set('name', name || '');
@@ -450,13 +455,11 @@
                 redirectUrl.searchParams.set('email', email || '');
                 
                 console.log('Redirecting to:', redirectUrl.toString());
-                
-                // Redirect immediately
                 window.location.href = redirectUrl.toString();
             })
             .catch(error => {
+                console.error('Lambda call failed:', error);
                 alert('There was an error starting the video processing. Please contact support.');
-                console.error('Error:', error);
                 icon.textContent = '🎬';
                 text.textContent = 'Begin Video Processing';
                 btn.disabled = false;
