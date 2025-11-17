@@ -340,6 +340,8 @@
         const email = urlParams.get('email');
         const deceasedname = urlParams.get('deceasedname');
         const inviteothers = urlParams.get('inviteothers');
+        const titlePhoto = urlParams.get('titlePhoto');  // ← NEW
+        const endPhoto = urlParams.get('endPhoto');      // ← NEW
         
         let dropboxLink = '';
 
@@ -376,7 +378,9 @@
             type,
             email,
             deceasedname,
-            inviteothers
+            inviteothers,
+            titlePhoto,
+            endPhoto
         });
 
         function viewPhotos() {
@@ -409,8 +413,8 @@
                 email: email,
                 type: type,  // Keep as-is, Zapier will normalize it
                 userName: name,
-                titlePhoto: null,  // Not using these yet
-                endPhoto: null     // Not using these yet
+                titlePhoto: titlePhoto,  // ← Now from URL params
+                endPhoto: endPhoto       // ← Now from URL params
             };
 
             console.log('Sending to Zapier webhook:', payload);
@@ -439,7 +443,7 @@
                         <div class="success-icon">✅</div>
                         <h1>Video Processing Started!</h1>
                         <p>We're creating your memorial video for <strong>${deceasedname || 'your loved one'}</strong> now.</p>
-                        <p>This process typically takes up to 30 minutes to complete.</p>
+                        <p>This process typically takes up to 24 hours to complete.</p>
                         <div class="email-highlight">
                             <p style="margin: 0;">
                                 <strong>You'll receive an email at:</strong><br>
