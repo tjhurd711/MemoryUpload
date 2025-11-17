@@ -436,29 +436,18 @@
             })
             .then(data => {
                 console.log('Zapier webhook response:', data);
-                // Success!
-                const container = document.getElementById('mainContainer');
-                container.innerHTML = `
-                    <div class="success-container">
-                        <div class="success-icon">✅</div>
-                        <h1>Video Processing Started!</h1>
-                        <p>We're creating your memorial video for <strong>${deceasedname || 'your loved one'}</strong> now.</p>
-                        <p>This process typically takes up to 24 hours to complete.</p>
-                        <div class="email-highlight">
-                            <p style="margin: 0;">
-                                <strong>You'll receive an email at:</strong><br>
-                                ${email}
-                            </p>
-                        </div>
-                        <div class="info-box" style="margin-top: 30px; text-align: left;">
-                            <p>
-                                <strong>What's happening now?</strong><br>
-                                Our system is processing your photos, organizing them chronologically, and creating a beautiful memorial tribute. 
-                                We'll send you a notification as soon as it's ready to view.
-                            </p>
-                        </div>
-                    </div>
-                `;
+                
+                // Build redirect URL with all parameters
+                const redirectUrl = new URL('https://slidechoosing.memorialvideo.ai/');
+                redirectUrl.searchParams.set('uid', uid);
+                redirectUrl.searchParams.set('name', name || '');
+                redirectUrl.searchParams.set('type', type || '');
+                redirectUrl.searchParams.set('email', email || '');
+                
+                console.log('Redirecting to:', redirectUrl.toString());
+                
+                // Redirect immediately
+                window.location.href = redirectUrl.toString();
             })
             .catch(error => {
                 alert('There was an error starting the video processing. Please contact support.');
