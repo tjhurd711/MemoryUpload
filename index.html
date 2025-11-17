@@ -403,28 +403,36 @@
             btn.disabled = true;
             btn.className = 'processing';
 
-            // Send ALL data to your Zapier webhook or Lambda
-            const webhookData = {
+            // Build payload matching the original JotForm structure
+            const payload = {
                 uid: uid,
-                name: name,
-                type: type,
                 email: email,
-                deceasedname: deceasedname,
-                inviteothers: inviteothers,
-                dropboxLink: dropboxLink,
-                action: 'start_video_processing'
+                type: type,  // Keep as-is, Zapier will normalize it
+                userName: name,
+                titlePhoto: null,  // Not using these yet
+                endPhoto: null     // Not using these yet
             };
 
-            // Replace with your actual webhook URL (Zapier or API Gateway)
-            fetch('https://YOUR-WEBHOOK-URL-HERE', {
+            console.log('Sending to Zapier webhook:', payload);
+
+            // Send to Zapier webhook (replaces JotForm trigger)
+            fetch('https://hooks.zapier.com/hooks/catch/19825049/uo3a372/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(webhookData)
+                body: JSON.stringify(payload)
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Zapier webhook response status:', response.status);
+                // Zapier webhooks return 200 even on success with minimal response
+                if (!response.ok) {
+                    throw new Error(`Webhook returned status ${response.status}`);
+                }
+                return response.json().catch(() => ({})); // Zapier might return empty body
+            })
             .then(data => {
+                console.log('Zapier webhook response:', data);
                 // Success!
                 const container = document.getElementById('mainContainer');
                 container.innerHTML = `
