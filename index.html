@@ -422,17 +422,15 @@
             // Send to Zapier webhook (replaces JotForm trigger)
             fetch('https://hooks.zapier.com/hooks/catch/19825049/uo3a372/', {
                 method: 'POST',
-                mode: 'no-cors',  // ← This bypasses CORS but you won't get response data
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload)
             })
             .then(response => {
-                console.log('Zapier webhook sent (no-cors mode)');
-                // In no-cors mode, we can't read the response, but the data was sent
-                // We'll assume success and show the success screen
-                return {};
+                console.log('Zapier webhook sent');
+                // Zapier webhooks always return success
+                return response.text().catch(() => '{}');
             })
             .then(data => {
                 console.log('Zapier webhook response:', data);
