@@ -65,14 +65,26 @@
     </div>
 
     <script>
-        // Get parameters from URL
+        // Get ALL parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
         const uid = urlParams.get('uid');
+        const name = urlParams.get('name');
+        const type = urlParams.get('type');
+        const email = urlParams.get('email');
+        const deceasedname = urlParams.get('deceasedname');
+        const inviteothers = urlParams.get('inviteothers');
         const dropboxLink = decodeURIComponent(urlParams.get('DLLink') || '');
 
         // Debug log
-        console.log('UID:', uid);
-        console.log('Dropbox Link:', dropboxLink);
+        console.log('All Parameters:', {
+            uid,
+            name,
+            type,
+            email,
+            deceasedname,
+            inviteothers,
+            dropboxLink
+        });
 
         function viewPhotos() {
             if (dropboxLink) {
@@ -83,6 +95,7 @@
         }
 
         function beginVideo() {
+            // Validate required fields
             if (!uid) {
                 alert('Order information missing. Please contact support.');
                 return;
@@ -93,17 +106,25 @@
             btn.disabled = true;
             btn.className = 'processing';
 
-            // Call your video processing endpoint
-            // Replace with your actual Lambda/API endpoint
-            fetch('https://YOUR-API-GATEWAY-URL/start-processing', {
+            // Send ALL data to your Zapier webhook or Lambda
+            const webhookData = {
+                uid: uid,
+                name: name,
+                type: type,
+                email: email,
+                deceasedname: deceasedname,
+                inviteothers: inviteothers,
+                dropboxLink: dropboxLink,
+                action: 'start_video_processing'
+            };
+
+            // Replace with your actual webhook URL (Zapier or API Gateway)
+            fetch('https://YOUR-WEBHOOK-URL-HERE', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    orderNumber: uid,
-                    action: 'start_processing'
-                })
+                body: JSON.stringify(webhookData)
             })
             .then(response => response.json())
             .then(data => {
@@ -111,8 +132,8 @@
                 document.body.innerHTML = `
                     <div style="text-align: center; padding: 50px;">
                         <h1 style="color: #28a745;">✅ Video Processing Started!</h1>
-                        <p style="font-size: 18px;">We're creating your memorial video now.</p>
-                        <p>You'll receive an email when it's ready (usually within 24 hours).</p>
+                        <p style="font-size: 18px;">We're creating your memorial video for ${deceasedname || 'your loved one'} now.</p>
+                        <p>You'll receive an email at <strong>${email}</strong> when it's ready (usually within 24 hours).</p>
                     </div>
                 `;
             })
