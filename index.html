@@ -340,35 +340,59 @@
         const email = urlParams.get('email');
         const deceasedname = urlParams.get('deceasedname');
         const inviteothers = urlParams.get('inviteothers');
-        const titlePhoto = urlParams.get('titlePhoto');  // ← NEW
-        const endPhoto = urlParams.get('endPhoto');      // ← NEW
+        const titlePhoto = urlParams.get('titlePhoto');
+        const endPhoto = urlParams.get('endPhoto');
         
         let dropboxLink = '';
 
-        // Fetch Dropbox link from S3 (now as plain text in .txt file)
-        if (uid) {
-            fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
-                .then(response => {
-                    if (!response.ok) throw new Error('Link not found');
-                    return response.text();
-                })
-                .then(link => {
-                    dropboxLink = link.trim();
-                    console.log('Fetched Dropbox link:', dropboxLink);
-                    const statusMsg = document.getElementById('statusMessage');
-                    statusMsg.classList.add('hidden');
-                    document.getElementById('viewBtn').disabled = false;
-                })
-                .catch(error => {
-                    console.error('Error fetching Dropbox link:', error);
-                    const statusMsg = document.getElementById('statusMessage');
-                    statusMsg.className = 'error';
-                    statusMsg.innerHTML = '⚠️ Unable to load photo link. Please contact support.';
-                });
-        } else {
+        // Check if auto-processing should happen
+        const shouldAutoProcess = inviteothers === 'No';
+
+        if (shouldAutoProcess) {
+            // Hide the buttons and info box
+            document.querySelector('.button-container').style.display = 'none';
+            document.querySelector('.info-box').style.display = 'none';
+            
+            // Update intro text
+            document.querySelector('.intro-text').textContent = 'Processing your memorial video... This will take just a moment.';
+            
+            // Show status message as loading
             const statusMsg = document.getElementById('statusMessage');
-            statusMsg.className = 'error';
-            statusMsg.innerHTML = '⚠️ Order information missing. Please contact support.';
+            statusMsg.className = 'loading';
+            statusMsg.innerHTML = '<div class="spinner"></div> Preparing your photos (10 seconds)...';
+            
+            // Wait 10 seconds, then auto-call Lambda
+            setTimeout(() => {
+                statusMsg.innerHTML = '<div class="spinner"></div> Starting video processing...';
+                beginVideoAuto();
+            }, 10000);
+            
+        } else {
+            // Normal flow - fetch Dropbox link for "View Photos" button
+            if (uid) {
+                fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Link not found');
+                        return response.text();
+                    })
+                    .then(link => {
+                        dropboxLink = link.trim();
+                        console.log('Fetched Dropbox link:', dropboxLink);
+                        const statusMsg = document.getElementById('statusMessage');
+                        statusMsg.classList.add('hidden');
+                        document.getElementById('viewBtn').disabled = false;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching Dropbox link:', error);
+                        const statusMsg = document.getElementById('statusMessage');
+                        statusMsg.className = 'error';
+                        statusMsg.innerHTML = '⚠️ Unable to load photo link. Please contact support.';
+                    });
+            } else {
+                const statusMsg = document.getElementById('statusMessage');
+                statusMsg.className = 'error';
+                statusMsg.innerHTML = '⚠️ Order information missing. Please contact support.';
+            }
         }
 
         // Debug log
@@ -391,13 +415,78 @@
             }
         }
 
-        function beginVideo() {
-            // Validate required fields
+        // Auto-processing version (no button UI changes needed)
+        function beginVideoAuto() {
             if (!uid) {
-                alert('Order information missing. Please contact support.');
+                const statusMsg = document.getElementById('statusMessage');
+                statusMsg.className = 'error';
+                statusMsg.innerHTML = '⚠️ Order information missing. Please contact support.';
                 return;
             }
 
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.className = 'loading';
+            statusMsg.innerHTML = '<div class="spinner"></div> Creating your memorial video...';
+
+            // Normalize type to lowercase
+            let normalizedType = "photos_only";
+            if (type) {
+                normalizedType = type.toLowerCase();
+                if (normalizedType === "memorial_video") {
+                    normalizedType = "memorial_video";
+                }
+            }
+
+            // Build Dropbox folder path
+            const folderPath = uid ? `/Order by age/${uid}` : null;
+
+            // Build payload for Lambda
+            const payload = {
+                UID: uid,
+                EMAIL: email,
+                TYPE: normalizedType,
+                NAME: name,
+                DROPBOX_FOLDER_PATH: folderPath,
+                TITLE_PHOTO_URL: titlePhoto || null,
+                END_PHOTO_URL: endPhoto || null
+            };
+
+            console.log('Auto-calling Lambda:', payload);
+
+            // Call Lambda directly
+            fetch('https://kjr77tz4hysmixxtzzdp3ugtte0gceyq.lambda-url.us-east-2.on.aws/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                console.log('Lambda response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Lambda started successfully:', data);
+                
+                // Redirect to slide choosing form
+                const redirectUrl = new URL('https://slidechoosing.memorialvideo.ai/');
+                redirectUrl.searchParams.set('uid', uid);
+                redirectUrl.searchParams.set('name', name || '');
+                redirectUrl.searchParams.set('type', type || '');
+                redirectUrl.searchParams.set('email', email || '');
+                
+                console.log('Redirecting to:', redirectUrl.toString());
+                window.location.href = redirectUrl.toString();
+            })
+            .catch(error => {
+                console.error('Lambda call failed:', error);
+                statusMsg.className = 'error';
+                statusMsg.innerHTML = '⚠️ Error starting video processing. Please contact support.';
+            });
+        }
+
+        // Manual button click version (existing functionality)
+        function beginVideo() {
             const btn = document.getElementById('beginBtn');
             const icon = btn.querySelector('.icon');
             const text = btn.querySelector('.button-text');
@@ -407,7 +496,13 @@
             btn.disabled = true;
             btn.className = 'processing';
 
-            // Normalize type to lowercase (matching original Zapier logic)
+            // Validate required fields
+            if (!uid) {
+                alert('Order information missing. Please contact support.');
+                return;
+            }
+
+            // Normalize type to lowercase
             let normalizedType = "photos_only";
             if (type) {
                 normalizedType = type.toLowerCase();
@@ -447,7 +542,7 @@
             .then(data => {
                 console.log('Lambda started successfully:', data);
                 
-                // Now redirect to slide choosing form
+                // Redirect to slide choosing form
                 const redirectUrl = new URL('https://slidechoosing.memorialvideo.ai/');
                 redirectUrl.searchParams.set('uid', uid);
                 redirectUrl.searchParams.set('name', name || '');
