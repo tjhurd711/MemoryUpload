@@ -486,8 +486,10 @@
         const shouldAutoProcess = inviteothers === 'No';
 
         if (shouldAutoProcess) {
-            // Hide the buttons and info box
-            document.querySelector('.button-container').style.display = 'none';
+            // Hide all buttons and info box
+            const allButtonContainers = document.querySelectorAll('.button-container');
+            allButtonContainers.forEach(container => container.style.display = 'none');
+            document.getElementById('uploadSection').style.display = 'none';
             document.querySelector('.info-box').style.display = 'none';
             
             // Update intro text
