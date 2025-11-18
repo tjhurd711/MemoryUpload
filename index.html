@@ -662,19 +662,32 @@
                     })
                 });
 
-                const result = await response.json();
-
+                // Check if response is OK first
                 if (response.ok) {
+                    let result;
+                    try {
+                        result = await response.json();
+                    } catch (jsonError) {
+                        // If JSON parsing fails but upload succeeded, still show success
+                        console.log('Upload succeeded but response JSON parse failed');
+                        result = { uploaded: selectedFiles.length };
+                    }
+                    
                     statusMsg.className = 'success';
-                    statusMsg.innerHTML = `✓ Successfully uploaded ${result.uploaded} photo(s)!`;
+                    statusMsg.innerHTML = `✓ Successfully uploaded ${result.uploaded || selectedFiles.length} photo(s)!`;
                     
                     // Clear selected files
                     selectedFiles = [];
                     updateFileList();
                     document.getElementById('uploadBtn').style.display = 'none';
                     document.getElementById('fileInput').value = '';
+                    
+                    // Re-enable button
+                    icon.innerHTML = originalIcon;
+                    text.textContent = originalText;
+                    btn.disabled = false;
                 } else {
-                    throw new Error(result.error || 'Upload failed');
+                    throw new Error('Upload failed');
                 }
 
             } catch (error) {
