@@ -137,6 +137,11 @@
             color: white;
         }
 
+        .upload-photos {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
         .icon {
             font-size: 22px;
             position: relative;
@@ -146,6 +151,102 @@
         .button-text {
             position: relative;
             z-index: 1;
+        }
+
+        /* File Upload Section */
+        .upload-section {
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .upload-section h3 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .upload-section p {
+            color: #718096;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .selected-files {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .file-item-name {
+            color: #2d3748;
+            font-size: 14px;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-item-remove {
+            color: #e53e3e;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .file-item-remove:hover {
+            background: #fff5f5;
+        }
+
+        .upload-button {
+            margin-top: 20px;
         }
 
         #statusMessage {
@@ -166,6 +267,12 @@
             background: #fff5f5;
             color: #c53030;
             border: 1px solid #feb2b2;
+        }
+
+        #statusMessage.success {
+            background: #f0fff4;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
         }
 
         #statusMessage.hidden {
@@ -279,6 +386,10 @@
                 font-size: 16px;
             }
 
+            .upload-section {
+                padding: 20px;
+            }
+
             .success-container {
                 padding: 50px 25px;
             }
@@ -310,6 +421,29 @@
                     <span class="icon">📁</span>
                     <span class="button-text">View Uploaded Photos</span>
                 </button>
+            </div>
+
+            <!-- File Upload Section (only shows when inviteothers=Yes) -->
+            <div class="upload-section" id="uploadSection" style="display: none;">
+                <h3>📸 Add Extra Photos (Optional)</h3>
+                <p>You can add up to 10 additional photos before processing</p>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" multiple accept="image/*,.zip" onchange="handleFileSelect(event)">
+                    <label for="fileInput" class="file-input-label">
+                        Choose Files or Drop Here
+                    </label>
+                </div>
+
+                <div class="selected-files" id="selectedFiles"></div>
+
+                <button class="upload-photos upload-button" id="uploadBtn" onclick="uploadFiles()" style="display: none;">
+                    <span class="icon">☁️</span>
+                    <span class="button-text">Upload Photos</span>
+                </button>
+            </div>
+
+            <div class="button-container">
                 <button class="begin-video" id="beginBtn" onclick="beginVideo()">
                     <span class="icon">🎬</span>
                     <span class="button-text">Begin Video Processing</span>
@@ -344,6 +478,9 @@
         const endPhoto = urlParams.get('endPhoto');
         
         let dropboxLink = '';
+        let selectedFiles = [];
+        const MAX_FILES = 10;
+        const UPLOAD_LAMBDA_URL = 'https://qs6cadsch22yhnxrdp44k7xfou0ftimt.lambda-url.us-east-2.on.aws/'; // TODO: Replace with actual Lambda URL
 
         // Check if auto-processing should happen
         const shouldAutoProcess = inviteothers === 'No';
@@ -368,6 +505,9 @@
             }, 10000);
             
         } else {
+            // Show upload section for inviteothers=Yes
+            document.getElementById('uploadSection').style.display = 'block';
+            
             // Normal flow - fetch Dropbox link for "View Photos" button
             if (uid) {
                 fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
@@ -395,6 +535,25 @@
             }
         }
 
+        // Drag and drop functionality
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            addFiles(files);
+        });
+
         // Debug log
         console.log('All Parameters:', {
             uid,
@@ -406,6 +565,129 @@
             titlePhoto,
             endPhoto
         });
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            addFiles(files);
+        }
+
+        function addFiles(files) {
+            // Filter to only images and zip files
+            const validFiles = files.filter(file => 
+                file.type.startsWith('image/') || file.name.toLowerCase().endsWith('.zip')
+            );
+
+            // Check total count
+            if (selectedFiles.length + validFiles.length > MAX_FILES) {
+                alert(`You can only upload up to ${MAX_FILES} files total.`);
+                return;
+            }
+
+            selectedFiles = selectedFiles.concat(validFiles);
+            updateFileList();
+            
+            // Show upload button if files selected
+            document.getElementById('uploadBtn').style.display = selectedFiles.length > 0 ? 'flex' : 'none';
+        }
+
+        function updateFileList() {
+            const container = document.getElementById('selectedFiles');
+            
+            if (selectedFiles.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = selectedFiles.map((file, index) => `
+                <div class="file-item">
+                    <span class="file-item-name">${file.name}</span>
+                    <span class="file-item-remove" onclick="removeFile(${index})">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+            document.getElementById('uploadBtn').style.display = selectedFiles.length > 0 ? 'flex' : 'none';
+        }
+
+        async function uploadFiles() {
+            if (selectedFiles.length === 0) {
+                alert('Please select files to upload');
+                return;
+            }
+
+            const btn = document.getElementById('uploadBtn');
+            const icon = btn.querySelector('.icon');
+            const text = btn.querySelector('.button-text');
+            const originalIcon = icon.innerHTML;
+            const originalText = text.textContent;
+            
+            icon.innerHTML = '<div class="spinner"></div>';
+            text.textContent = 'Uploading...';
+            btn.disabled = true;
+
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.className = 'loading';
+            statusMsg.innerHTML = '<div class="spinner"></div> Uploading photos...';
+
+            try {
+                // Convert files to base64
+                const filesData = await Promise.all(selectedFiles.map(async (file) => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const base64 = reader.result.split(',')[1]; // Remove data URL prefix
+                            resolve({
+                                filename: file.name,
+                                data: base64
+                            });
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                }));
+
+                // Call Lambda
+                const response = await fetch(UPLOAD_LAMBDA_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        uid: uid,
+                        name: name,
+                        files: filesData
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusMsg.className = 'success';
+                    statusMsg.innerHTML = `✓ Successfully uploaded ${result.uploaded} photo(s)!`;
+                    
+                    // Clear selected files
+                    selectedFiles = [];
+                    updateFileList();
+                    document.getElementById('uploadBtn').style.display = 'none';
+                    document.getElementById('fileInput').value = '';
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusMsg.className = 'error';
+                statusMsg.innerHTML = '⚠️ Upload failed. Please try again or contact support.';
+                
+                // Reset button
+                icon.innerHTML = originalIcon;
+                text.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
 
         function viewPhotos() {
             if (dropboxLink) {
