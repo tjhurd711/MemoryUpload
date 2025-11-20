@@ -795,6 +795,9 @@
 
         // Manual button click version (existing functionality)
         function beginVideo() {
+
+            document.getElementById('loadingModal').style.display = 'flex';
+            
             const btn = document.getElementById('beginBtn');
             const icon = btn.querySelector('.icon');
             const text = btn.querySelector('.button-text');
