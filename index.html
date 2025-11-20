@@ -526,13 +526,10 @@
             // Show status message as loading
             const statusMsg = document.getElementById('statusMessage');
             statusMsg.className = 'loading';
-            statusMsg.innerHTML = '<div class="spinner"></div> Preparing your photos (10 seconds)...';
+            statusMsg.innerHTML = '<div class="spinner"></div> Starting video processing...';
             
-            // Wait 10 seconds, then auto-call Lambda
-            setTimeout(() => {
-                statusMsg.innerHTML = '<div class="spinner"></div> Starting video processing...';
-                beginVideoAuto();
-            }, 10000);
+            // Call Lambda immediately (no delay)
+            beginVideoAuto();
             
         } else {
             // Show upload section for inviteothers=Yes
@@ -564,7 +561,6 @@
                 statusMsg.innerHTML = '⚠️ Order information missing. Please contact support.';
             }
         }
-
         // Drag and drop functionality
         const uploadSection = document.getElementById('uploadSection');
         
