@@ -789,9 +789,9 @@
             }, 2000);
         }
 
-        // Manual button click version (existing functionality)
+        // Manual button click version (fire and forget)
         function beginVideo() {
-
+            // Show loading modal FIRST
             document.getElementById('loadingModal').style.display = 'flex';
             
             const btn = document.getElementById('beginBtn');
@@ -834,22 +834,19 @@
 
             console.log('Calling Lambda:', payload);
 
-            // Call Lambda directly
+            // Fire and forget - call Lambda but don't wait for response
             fetch('https://kjr77tz4hysmixxtzzdp3ugtte0gceyq.lambda-url.us-east-2.on.aws/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload)
-            })
-            .then(response => {
-                console.log('Lambda response status:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('Lambda started successfully:', data);
-                
-                // Redirect to slide choosing form
+            }).catch(error => {
+                console.error('Lambda call error (non-blocking):', error);
+            });
+
+            // Redirect immediately after 2 seconds (time for modal to show)
+            setTimeout(() => {
                 const redirectUrl = new URL('https://slidechoosing.memorialvideo.ai/');
                 redirectUrl.searchParams.set('uid', uid);
                 redirectUrl.searchParams.set('name', name || '');
@@ -858,15 +855,7 @@
                 
                 console.log('Redirecting to:', redirectUrl.toString());
                 window.location.href = redirectUrl.toString();
-            })
-            .catch(error => {
-                console.error('Lambda call failed:', error);
-                alert('There was an error starting the video processing. Please contact support.');
-                icon.textContent = '🎬';
-                text.textContent = 'Begin Video Processing';
-                btn.disabled = false;
-                btn.className = 'begin-video';
-            });
+            }, 2000);
         }
     </script>
     <!-- Loading Modal -->
