@@ -783,6 +783,7 @@
                 redirectUrl.searchParams.set('name', name || '');
                 redirectUrl.searchParams.set('type', type || '');
                 redirectUrl.searchParams.set('email', email || '');
+                redirectUrl.searchParams.set('deceasedname', deceasedname || ''); // ADD THIS LINE
                 
                 console.log('Redirecting to:', redirectUrl.toString());
                 window.location.href = redirectUrl.toString();
