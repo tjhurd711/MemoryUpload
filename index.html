@@ -388,6 +388,70 @@
         #loadingModal[style*="display: none"] {
             display: none !important;
         }
+
+        /* Already Processing Modal */
+        #alreadyProcessingModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #alreadyProcessingModal[style*="display: none"] {
+            display: none !important;
+        }
+
+        .already-processing-content {
+            background: white;
+            border-radius: 16px;
+            padding: 50px 60px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            margin: 20px;
+        }
+
+        .already-processing-content .icon-large {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .already-processing-content h2 {
+            color: #1e3c72;
+            font-size: 26px;
+            margin-bottom: 15px;
+            line-height: 1.3;
+        }
+
+        .already-processing-content p {
+            color: #6c757d;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .already-processing-content .support-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .already-processing-content .support-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 60, 114, 0.4);
+        }
         
         /* Responsive */
         @media (max-width: 768px) {
@@ -430,6 +494,18 @@
 
             .success-icon {
                 font-size: 60px;
+            }
+
+            .already-processing-content {
+                padding: 40px 30px;
+            }
+
+            .already-processing-content h2 {
+                font-size: 22px;
+            }
+
+            .already-processing-content .icon-large {
+                font-size: 50px;
             }
         }
     </style>
@@ -495,6 +571,26 @@
         </div>
     </div>
 
+    <!-- Loading Modal -->
+    <div id="loadingModal" style="display: none;">
+        <div style="background: white; border-radius: 16px; padding: 40px 60px; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+            <div style="border: 4px solid #f3f4f6; border-top: 4px solid #1e3c72; border-radius: 50%; width: 60px; height: 60px; animation: spin 0.8s linear infinite; margin: 0 auto 20px;"></div>
+            <h2 style="color: #1e3c72; font-size: 24px; margin-bottom: 10px;">Processing Your Photos</h2>
+            <p style="color: #6c757d; font-size: 16px;">Please wait while we prepare everything...</p>
+        </div>
+    </div>
+
+    <!-- Already Processing Modal -->
+    <div id="alreadyProcessingModal" style="display: none;">
+        <div class="already-processing-content">
+            <div class="icon-large">⏳</div>
+            <h2 id="alreadyProcessingTitle">Your Photos Are Already Being Processed</h2>
+            <p>We've already started working on your order.</p>
+            <p>You'll receive an email notification when everything is ready.</p>
+            <a href="mailto:support@memorialvideo.ai" class="support-link">Contact Support</a>
+        </div>
+    </div>
+
     <script>
         // Get ALL parameters from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -510,59 +606,132 @@
         let dropboxLink = '';
         let selectedFiles = [];
         const MAX_FILES = 10;
-        const UPLOAD_LAMBDA_URL = 'https://qs6cadsch22yhnxrdp44k7xfou0ftimt.lambda-url.us-east-2.on.aws/'; // TODO: Replace with actual Lambda URL
+        const UPLOAD_LAMBDA_URL = 'https://qs6cadsch22yhnxrdp44k7xfou0ftimt.lambda-url.us-east-2.on.aws/';
+        const PROCESSING_STATUS_LAMBDA_URL = 'https://36wayjplzjfksc3l3rueskw4ui0rjpqe.lambda-url.us-east-2.on.aws/';
 
-        // Check if auto-processing should happen
-        const shouldAutoProcess = inviteothers === 'No';
+        // Get display name for product type
+        function getProductDisplayName(productType) {
+            if (!productType) return 'Photos';
+            const normalized = productType.toLowerCase();
+            if (normalized === 'memorial_video') {
+                return 'Memorial Video';
+            } else if (normalized === 'photos_only') {
+                return 'Age-Sorted Photos';
+            }
+            return 'Photos';
+        }
 
-        if (shouldAutoProcess) {
-            // Hide all buttons and info box
-            const allButtonContainers = document.querySelectorAll('.button-container');
-            allButtonContainers.forEach(container => container.style.display = 'none');
-            document.getElementById('uploadSection').style.display = 'none';
-            document.querySelector('.info-box').style.display = 'none';
+        // Check if already processing on page load
+        async function checkIfAlreadyProcessing() {
+            if (!uid) return false;
             
-            // Update intro text
-            document.querySelector('.intro-text').textContent = 'Processing your memorial video... This will take just a moment.';
-            
-            // Show status message as loading
-            const statusMsg = document.getElementById('statusMessage');
-            statusMsg.className = 'loading';
-            statusMsg.innerHTML = '<div class="spinner"></div> Starting video processing...';
-            
-            // Call Lambda immediately (no delay)
-            beginVideoAuto();
-            
-        } else {
-            // Show upload section for inviteothers=Yes
-            document.getElementById('uploadSection').style.display = 'block';
-            
-            // Normal flow - fetch Dropbox link for "View Photos" button
-            if (uid) {
-                fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
-                    .then(response => {
-                        if (!response.ok) throw new Error('Link not found');
-                        return response.text();
-                    })
-                    .then(link => {
-                        dropboxLink = link.trim();
-                        console.log('Fetched Dropbox link:', dropboxLink);
-                        const statusMsg = document.getElementById('statusMessage');
-                        statusMsg.classList.add('hidden');
-                        document.getElementById('viewBtn').disabled = false;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching Dropbox link:', error);
-                        const statusMsg = document.getElementById('statusMessage');
-                        statusMsg.className = 'error';
-                        statusMsg.innerHTML = '⚠️ Unable to load photo link. Please contact support.';
-                    });
-            } else {
-                const statusMsg = document.getElementById('statusMessage');
-                statusMsg.className = 'error';
-                statusMsg.innerHTML = '⚠️ Order information missing. Please contact support.';
+            try {
+                const response = await fetch(`${PROCESSING_STATUS_LAMBDA_URL}?uid=${uid}`);
+                const data = await response.json();
+                return data.exists === true;
+            } catch (error) {
+                console.error('Error checking processing status:', error);
+                return false; // If check fails, allow them to proceed
             }
         }
+
+        // Mark as processing started
+        async function markAsProcessingStarted() {
+            if (!uid) return false;
+            
+            try {
+                const response = await fetch(PROCESSING_STATUS_LAMBDA_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        uid: uid,
+                        type: type || 'photos_only'
+                    })
+                });
+                const data = await response.json();
+                return data.success === true;
+            } catch (error) {
+                console.error('Error marking as processing:', error);
+                return false; // If marking fails, still proceed with processing
+            }
+        }
+
+        // Show already processing modal
+        function showAlreadyProcessingModal() {
+            const productName = getProductDisplayName(type);
+            document.getElementById('alreadyProcessingTitle').textContent = `Your ${productName} Is Already Being Processed`;
+            document.getElementById('alreadyProcessingModal').style.display = 'flex';
+            document.getElementById('mainContainer').style.display = 'none';
+        }
+
+        // Initialize page
+        async function initializePage() {
+            // First, check if already processing
+            const alreadyProcessing = await checkIfAlreadyProcessing();
+            
+            if (alreadyProcessing) {
+                showAlreadyProcessingModal();
+                return; // Stop here, don't load rest of page
+            }
+
+            // Check if auto-processing should happen
+            const shouldAutoProcess = inviteothers === 'No';
+
+            if (shouldAutoProcess) {
+                // Hide all buttons and info box
+                const allButtonContainers = document.querySelectorAll('.button-container');
+                allButtonContainers.forEach(container => container.style.display = 'none');
+                document.getElementById('uploadSection').style.display = 'none';
+                document.querySelector('.info-box').style.display = 'none';
+                
+                // Update intro text
+                document.querySelector('.intro-text').textContent = 'Processing your memorial video... This will take just a moment.';
+                
+                // Show status message as loading
+                const statusMsg = document.getElementById('statusMessage');
+                statusMsg.className = 'loading';
+                statusMsg.innerHTML = '<div class="spinner"></div> Starting video processing...';
+                
+                // Call Lambda immediately (no delay)
+                beginVideoAuto();
+                
+            } else {
+                // Show upload section for inviteothers=Yes
+                document.getElementById('uploadSection').style.display = 'block';
+                
+                // Normal flow - fetch Dropbox link for "View Photos" button
+                if (uid) {
+                    fetch(`https://order-by-age-uploads.s3.us-east-2.amazonaws.com/dropbox-links/${uid}.txt`)
+                        .then(response => {
+                            if (!response.ok) throw new Error('Link not found');
+                            return response.text();
+                        })
+                        .then(link => {
+                            dropboxLink = link.trim();
+                            console.log('Fetched Dropbox link:', dropboxLink);
+                            const statusMsg = document.getElementById('statusMessage');
+                            statusMsg.classList.add('hidden');
+                            document.getElementById('viewBtn').disabled = false;
+                        })
+                        .catch(error => {
+                            console.error('Error fetching Dropbox link:', error);
+                            const statusMsg = document.getElementById('statusMessage');
+                            statusMsg.className = 'error';
+                            statusMsg.innerHTML = '⚠️ Unable to load photo link. Please contact support.';
+                        });
+                } else {
+                    const statusMsg = document.getElementById('statusMessage');
+                    statusMsg.className = 'error';
+                    statusMsg.innerHTML = '⚠️ Order information missing. Please contact support.';
+                }
+            }
+        }
+
+        // Run initialization
+        initializePage();
+
         // Drag and drop functionality
         const uploadSection = document.getElementById('uploadSection');
         
@@ -722,6 +891,7 @@
                 btn.disabled = false;
             }
         }
+
         function viewPhotos() {
             if (dropboxLink) {
                 window.open(dropboxLink, '_blank');
@@ -731,7 +901,7 @@
         }
 
         // Auto-processing version (no button UI changes needed)
-        function beginVideoAuto() {
+        async function beginVideoAuto() {
             if (!uid) {
                 const statusMsg = document.getElementById('statusMessage');
                 statusMsg.className = 'error';
@@ -741,6 +911,9 @@
 
             // Show loading modal
             document.getElementById('loadingModal').style.display = 'flex';
+
+            // MARK AS PROCESSING FIRST
+            await markAsProcessingStarted();
 
             // Normalize type to lowercase
             let normalizedType = "photos_only";
@@ -785,7 +958,7 @@
                 redirectUrl.searchParams.set('name', name || '');
                 redirectUrl.searchParams.set('type', type || '');
                 redirectUrl.searchParams.set('email', email || '');
-                redirectUrl.searchParams.set('deceasedname', deceasedname || ''); // ADD THIS LINE
+                redirectUrl.searchParams.set('deceasedname', deceasedname || '');
                 
                 console.log('Redirecting to:', redirectUrl.toString());
                 window.location.href = redirectUrl.toString();
@@ -793,7 +966,7 @@
         }
 
         // Manual button click version (fire and forget)
-        function beginVideo() {
+        async function beginVideo() {
             // Show loading modal FIRST
             document.getElementById('loadingModal').style.display = 'flex';
             
@@ -811,6 +984,9 @@
                 alert('Order information missing. Please contact support.');
                 return;
             }
+
+            // MARK AS PROCESSING FIRST
+            await markAsProcessingStarted();
 
             // Normalize type to lowercase
             let normalizedType = "photos_only";
@@ -855,20 +1031,12 @@
                 redirectUrl.searchParams.set('name', name || '');
                 redirectUrl.searchParams.set('type', type || '');
                 redirectUrl.searchParams.set('email', email || '');
-                redirectUrl.searchParams.set('deceasedname', deceasedname || ''); // ADD THIS LINE
+                redirectUrl.searchParams.set('deceasedname', deceasedname || '');
                 
                 console.log('Redirecting to:', redirectUrl.toString());
                 window.location.href = redirectUrl.toString();
             }, 2000);
         }
     </script>
-    <!-- Loading Modal -->
-    <div id="loadingModal" style="display: none;">
-        <div style="background: white; border-radius: 16px; padding: 40px 60px; text-align: center; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
-            <div style="border: 4px solid #f3f4f6; border-top: 4px solid #1e3c72; border-radius: 50%; width: 60px; height: 60px; animation: spin 0.8s linear infinite; margin: 0 auto 20px;"></div>
-            <h2 style="color: #1e3c72; font-size: 24px; margin-bottom: 10px;">Processing Your Photos</h2>
-            <p style="color: #6c757d; font-size: 16px;">Please wait while we prepare everything...</p>
-        </div>
-    </div>
 </body>
 </html>
