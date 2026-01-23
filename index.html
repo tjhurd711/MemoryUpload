@@ -942,6 +942,7 @@
             // Fire and forget - call Lambda but don't wait for response
             fetch('https://kjr77tz4hysmixxtzzdp3ugtte0gceyq.lambda-url.us-east-2.on.aws/', {
                 method: 'POST',
+                keepalive: true,
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -1015,6 +1016,7 @@
             // Fire and forget - call Lambda but don't wait for response
             fetch('https://kjr77tz4hysmixxtzzdp3ugtte0gceyq.lambda-url.us-east-2.on.aws/', {
                 method: 'POST',
+                keepalive: true,
                 headers: {
                     'Content-Type': 'application/json',
                 },
